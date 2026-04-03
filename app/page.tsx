@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import Image from "next/image";
 
 export default function Home() {
@@ -62,4 +63,10 @@ export default function Home() {
       </main>
     </div>
   );
+=======
+import GhostMapFiles from '@/components/GhostMapFiles';
+
+export default function Home() {
+  return <GhostMapFiles />;
+>>>>>>> cac65cfead7e1a02142f29594863acd65e4126e6
 }
