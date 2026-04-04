@@ -1,42 +1,89 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, MapPin, Compass, Home, BookOpen, Info, ExternalLink } from 'lucide-react';
+import { Menu, X, MapPin, Compass, Home, BookOpen, Info, ExternalLink, Zap } from 'lucide-react';
 
-const GhostMapFiles = () => {
-  const [currentPage, setCurrentPage] = useState('home');
+interface Location {
+  id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  category: string;
+  desc: string;
+  booking: string | null;
+}
+
+interface LeyLine {
+  name: string;
+  start: { lat: number; lng: number };
+  end: { lat: number; lng: number };
+  color: string;
+  glyph: string;
+  distance?: string;
+}
+
+interface Location {
+  id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  category: 'us-tour' | 'au-tour' | 'cemetery';
+  desc: string;
+  booking: string | null;
+}
+
+interface LeyLine {
+  name: string;
+  start: { lat: number; lng: number };
+  end: { lat: number; lng: number };
+  color: string;
+  glyph: string;
+}
+
+interface LeyLineAssociation extends LeyLine {
+  distance: string;
+}
+
+interface MarkerData {
+  marker: any;
+  location: Location;
+  baseColor: string;
+}
+
+export default function GhostMapFiles() {
+  const [currentPage, setCurrentPage] = useState<'home' | 'tours' | 'cemeteries' | 'about'>('home');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [leyLinesActive, setLeyLinesActive] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
-  const markersRef = useRef([]);
-  const leyLineLayersRef = useRef([]);
-  const polylineLayersRef = useRef([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationsNearLeyLines, setLocationsNearLeyLines] = useState<Map<number, LeyLineAssociation[]>>(new Map());
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<any>(null);
+  const markersRef = useRef<MarkerData[]>([]);
+  const leyLineLayersRef = useRef<any[]>([]);
 
   // US Ghost Tours
-  const usGhostTours = [
+  const usGhostTours: Location[] = [
     { id: 1, name: 'New Orleans French Quarter', lat: 29.9611, lng: -90.2680, category: 'us-tour', desc: 'Haunted Voodoo alley with spirits of Marie Laveau', booking: 'https://www.viator.com/en-US/tours/New-Orleans/French-Quarter-Ghost-Tour/d309-2716' },
-    { id: 2, name: 'Chicago Gangster Tour', lat: 41.8781, lng: -87.6298, category: 'us-tour', desc: 'AI Capone era speakeasies and mob history', booking: 'https://www.viator.com/en-US/tours/Chicago/Chicago-Gangster-Tour/d311-17261' },
+    { id: 2, name: 'Chicago Gangster Tour', lat: 41.8781, lng: -87.6298, category: 'us-tour', desc: 'Al Capone era speakeasies and mob history', booking: 'https://www.viator.com/en-US/tours/Chicago/Chicago-Gangster-Tour/d311-17261' },
     { id: 3, name: 'NYC Greenwich Village', lat: 40.7347, lng: -74.0029, category: 'us-tour', desc: 'Bohemian ghosts and haunted theaters', booking: 'https://www.viator.com/en-US/tours/New-York-City/Greenwich-Village-Ghost-Tour/d308-2814' },
     { id: 4, name: 'Savannah Ghost Tour', lat: 32.0809, lng: -81.0912, category: 'us-tour', desc: 'Spanish moss graves and colonial spirits', booking: 'https://www.viator.com/en-US/tours/Savannah/Savannah-Ghost-Tour/d305-2716' },
     { id: 5, name: 'Gettysburg Battlefield', lat: 39.8090, lng: -77.2348, category: 'us-tour', desc: 'Civil War spirits still haunting the fields', booking: 'https://www.viator.com/en-US/tours/Gettysburg/Gettysburg-Battlefield-Ghost-Tour/d315-71622' },
     { id: 6, name: 'San Antonio Alamo', lat: 29.4241, lng: -98.4859, category: 'us-tour', desc: 'Fallen soldiers and paranormal encounters', booking: 'https://www.viator.com/en-US/tours/San-Antonio/San-Antonio-Ghost-Tour/d314-17261' },
     { id: 7, name: 'Boston Freedom Trail', lat: 42.3601, lng: -71.0589, category: 'us-tour', desc: 'Revolutionary war ghosts on historic streets', booking: 'https://www.viator.com/en-US/tours/Boston/Boston-Ghost-Tour/d305-2716' },
     { id: 8, name: 'Charleston Historic District', lat: 32.7765, lng: -79.9318, category: 'us-tour', desc: 'Antebellum mansions with restless spirits', booking: 'https://www.viator.com/en-US/tours/Charleston/Charleston-Ghost-Tour/d305-2716' },
-    { id: 9, name: 'St. Augustine Ancient City', lat: 29.8936, lng: -81.3132, category: 'us-tour', desc: 'America\'s oldest city, countless paranormal reports', booking: 'https://www.viator.com/en-US/tours/St-Augustine/St-Augustine-Ghost-Tour/d305-5645' },
+    { id: 9, name: 'St. Augustine Ancient City', lat: 29.8936, lng: -81.3132, category: 'us-tour', desc: "America's oldest city, countless paranormal reports", booking: 'https://www.viator.com/en-US/tours/St-Augustine/St-Augustine-Ghost-Tour/d305-5645' },
     { id: 10, name: 'Salem Witch Trials', lat: 42.5195, lng: -70.8967, category: 'us-tour', desc: 'Haunted legacy of 1692 trials', booking: 'https://www.viator.com/en-US/tours/Salem/Salem-Ghost-Tour/d305-2716' },
   ];
 
   // Australian/Victorian Ghost Tours
-  const auGhostTours = [
+  const auGhostTours: Location[] = [
     { id: 11, name: 'Melbourne Ghost Tour', lat: -37.8136, lng: 144.9631, category: 'au-tour', desc: 'Haunted laneways of inner Melbourne', booking: 'https://www.viator.com/en-AU/tours/Melbourne/Melbourne-Ghost-and-Laneways-Tour/d4663-17261' },
     { id: 12, name: 'Old Castlemaine Gaol', lat: -37.0660, lng: 144.2167, category: 'au-tour', desc: 'Violent hangings echo through prison walls', booking: 'https://www.viator.com/en-AU/tours/Castlemaine/Castlemaine-Gaol-Ghost-Tour/d4663-71622' },
     { id: 13, name: 'Altona Homestead', lat: -37.9142, lng: 144.7697, category: 'au-tour', desc: 'Colonial mansion with unfinished business', booking: 'https://www.viator.com/en-AU/tours/Melbourne/Altona-Homestead-Tour/d4663-2716' },
     { id: 14, name: 'Aradale Asylum', lat: -37.2640, lng: 142.1548, category: 'au-tour', desc: 'Former mental institution with tortured souls', booking: 'https://www.viator.com/en-AU/tours/Ararat/Aradale-Asylum-Tour/d4663-71622' },
     { id: 15, name: 'Old Melbourne Gaol', lat: -37.8067, lng: 144.9664, category: 'au-tour', desc: 'Ned Kelly executed, spirits remain', booking: 'https://www.viator.com/en-AU/tours/Melbourne/Old-Melbourne-Gaol-Tour/d4663-2716' },
-    { id: 16, name: 'Port Arthur Convict Prison', lat: -43.1408, lng: 147.8540, category: 'au-tour', desc: 'Tasmania\'s most haunted penal colony', booking: 'https://www.viator.com/en-AU/tours/Port-Arthur/Port-Arthur-Ghost-Tour/d4663-71622' },
+    { id: 16, name: 'Port Arthur Convict Prison', lat: -43.1408, lng: 147.8540, category: 'au-tour', desc: "Tasmania's most haunted penal colony", booking: 'https://www.viator.com/en-AU/tours/Port-Arthur/Port-Arthur-Ghost-Tour/d4663-71622' },
     { id: 17, name: 'Pentridge Prison', lat: -37.7668, lng: 144.9892, category: 'au-tour', desc: 'Brutal executions in underground cells', booking: 'https://www.viator.com/en-AU/tours/Melbourne/Pentridge-Prison-Tour/d4663-2716' },
     { id: 18, name: 'Williamstown Fort', lat: -37.8581, lng: 144.9009, category: 'au-tour', desc: 'Military ghosts guard historic fortification', booking: 'https://www.viator.com/en-AU/tours/Williamstown/Fort-Williamstown-Tour/d4663-2716' },
     { id: 19, name: 'Ballarat Ghost Walk', lat: -37.5567, lng: 143.8900, category: 'au-tour', desc: 'Eureka Stockade spirits and goldfield hauntings', booking: 'https://www.viator.com/en-AU/tours/Ballarat/Ballarat-Ghost-Tour/d4663-71622' },
@@ -44,11 +91,11 @@ const GhostMapFiles = () => {
   ];
 
   // Victorian Cemeteries
-  const cemeteries = [
+  const cemeteries: Location[] = [
     { id: 21, name: 'Melbourne General Cemetery', lat: -37.7890, lng: 144.9756, category: 'cemetery', desc: 'Historic burial ground with prominent figures', booking: null },
     { id: 22, name: 'St Kilda Cemetery', lat: -37.8681, lng: 144.9756, category: 'cemetery', desc: 'Seaside graves with restless spirits', booking: null },
     { id: 23, name: 'Coburg Pine Ridge Cemetery', lat: -37.7222, lng: 144.9667, category: 'cemetery', desc: 'Ancient burials on sacred ground', booking: null },
-    { id: 24, name: 'Fawkner Cemetery', lat: -37.6867, lng: 144.9234, category: 'cemetery', desc: 'Melbourne\'s largest cemetery, many hauntings', booking: null },
+    { id: 24, name: 'Fawkner Cemetery', lat: -37.6867, lng: 144.9234, category: 'cemetery', desc: "Melbourne's largest cemetery, many hauntings", booking: null },
     { id: 25, name: 'Springvale Cemetery', lat: -37.8701, lng: 145.1434, category: 'cemetery', desc: 'Multicultural cemetery with varied spirits', booking: null },
     { id: 26, name: 'Abbotsford Cemetery', lat: -37.8001, lng: 145.0123, category: 'cemetery', desc: 'Victorian-era gravesites', booking: null },
     { id: 27, name: 'Kew Cemetery', lat: -37.8145, lng: 145.0456, category: 'cemetery', desc: 'Leafy cemetery with unseen visitors', booking: null },
@@ -56,193 +103,99 @@ const GhostMapFiles = () => {
     { id: 29, name: 'Oakleigh Cemetery', lat: -37.8823, lng: 145.0978, category: 'cemetery', desc: 'Well-maintained grounds hide dark histories', booking: null },
     { id: 30, name: 'Dandenong Cemetery', lat: -37.9867, lng: 145.2156, category: 'cemetery', desc: 'Deep in mountains, deeply haunted', booking: null },
     { id: 31, name: 'Moorabbin Cemetery', lat: -37.9456, lng: 145.1234, category: 'cemetery', desc: 'South suburbs burial ground', booking: null },
-    { id: 32, name: 'Preston Cemetery', lat: -37.7234, lng: 145.0089, category: 'cemetery', desc: 'North Melbourne\'s eternal resting place', booking: null },
+    { id: 32, name: 'Preston Cemetery', lat: -37.7234, lng: 145.0089, category: 'cemetery', desc: "North Melbourne's eternal resting place", booking: null },
     { id: 33, name: 'Brighton Cemetery', lat: -37.9123, lng: 145.0234, category: 'cemetery', desc: 'Beachside graves under moonlight', booking: null },
     { id: 34, name: 'Camberwell Cemetery', lat: -37.8456, lng: 145.0567, category: 'cemetery', desc: 'Inner-east hauntings', booking: null },
     { id: 35, name: 'Coburg Cemetery', lat: -37.7301, lng: 144.9534, category: 'cemetery', desc: 'Northern suburbs memorial ground', booking: null },
     { id: 36, name: 'Cemeteries of Essendon', lat: -37.7667, lng: 144.9301, category: 'cemetery', desc: 'West-side burial traditions', booking: null },
     { id: 37, name: 'Footscray Cemetery', lat: -37.7890, lng: 144.8856, category: 'cemetery', desc: 'Working-class final resting place', booking: null },
-    { id: 38, name: 'Geelong Cemetery', lat: -38.1500, lng: 144.3667, category: 'cemetery', desc: 'Regional Victoria\'s oldest graves', booking: null },
+    { id: 38, name: 'Geelong Cemetery', lat: -38.1500, lng: 144.3667, category: 'cemetery', desc: 'Regional Victoria oldest graves', booking: null },
     { id: 39, name: 'Bendigo Cemetery', lat: -36.7597, lng: 144.2783, category: 'cemetery', desc: 'Goldfield era burial ground', booking: null },
     { id: 40, name: 'Gisborne Cemetery', lat: -37.3389, lng: 144.1764, category: 'cemetery', desc: 'Rural Victoria memorial site', booking: null },
     { id: 41, name: 'Werribee Cemetery', lat: -37.8967, lng: 144.6778, category: 'cemetery', desc: 'Western suburbs resting place', booking: null },
     { id: 42, name: 'Lilydale Cemetery', lat: -37.7456, lng: 145.3589, category: 'cemetery', desc: 'Mountain town burial ground', booking: null },
-    { id: 43, name: 'Yarra Glen Cemetery', lat: -37.6234, lng: 145.4101, category: 'cemetery', desc: 'Wine country\'s quiet haunts', booking: null },
+    { id: 43, name: 'Yarra Glen Cemetery', lat: -37.6234, lng: 145.4101, category: 'cemetery', desc: "Wine country's quiet haunts", booking: null },
     { id: 44, name: 'Healesville Cemetery', lat: -37.6889, lng: 145.5012, category: 'cemetery', desc: 'Toucan forest memorial ground', booking: null },
     { id: 45, name: 'Warburton Cemetery', lat: -37.6423, lng: 145.5678, category: 'cemetery', desc: 'Deep fern gully burial place', booking: null },
   ];
 
-  // Major Ley Lines with accurate geometric data
-  const leyLines = [
-    {
-      name: 'Stonehenge-Giza',
-      start: { lat: 51.1789, lng: -1.8262, name: 'Stonehenge' },
-      end: { lat: 29.9792, lng: 31.1342, name: 'Giza Pyramids' },
-      color: '#ff6b6b',
-      width: 3,
-      dashPattern: '5,5',
-    },
-    {
-      name: 'Uluru-Machu Picchu',
-      start: { lat: -25.3441, lng: 131.0369, name: 'Uluru' },
-      end: { lat: -13.1631, lng: -72.5450, name: 'Machu Picchu' },
-      color: '#20c997',
-      width: 3,
-      dashPattern: '5,5',
-    },
-    {
-      name: 'Stonehenge-Glastonbury',
-      start: { lat: 51.1789, lng: -1.8262, name: 'Stonehenge' },
-      end: { lat: 51.1418, lng: -2.7159, name: 'Glastonbury' },
-      color: '#748ffc',
-      width: 2,
-      dashPattern: '3,3',
-    },
-    {
-      name: 'Easter Island-Nazca',
-      start: { lat: -27.1127, lng: -109.3497, name: 'Easter Island' },
-      end: { lat: -14.6349, lng: -75.1327, name: 'Nazca Lines' },
-      color: '#f06595',
-      width: 3,
-      dashPattern: '5,5',
-    },
-    {
-      name: 'Great Pyramid-Petra',
-      start: { lat: 29.9792, lng: 31.1342, name: 'Giza' },
-      end: { lat: 30.3285, lng: 35.4444, name: 'Petra' },
-      color: '#ffd43b',
-      width: 2,
-      dashPattern: '4,4',
-    },
-    {
-      name: 'Dendera-Luxor',
-      start: { lat: 26.1627, lng: 32.6703, name: 'Dendera' },
-      end: { lat: 25.7465, lng: 32.6393, name: 'Luxor' },
-      color: '#a78bfa',
-      width: 2,
-      dashPattern: '3,3',
-    },
-    {
-      name: 'Angkor Wat-Kailash',
-      start: { lat: 13.3667, lng: 103.8667, name: 'Angkor Wat' },
-      end: { lat: 31.1043, lng: 88.6436, name: 'Mount Kailash' },
-      color: '#34d399',
-      width: 3,
-      dashPattern: '5,5',
-    },
-    {
-      name: 'Rapa Nui-Tiahuanaco',
-      start: { lat: -27.1127, lng: -109.3497, name: 'Rapa Nui' },
-      end: { lat: -16.2298, lng: -68.7598, name: 'Tiahuanaco' },
-      color: '#fca5a5',
-      width: 3,
-      dashPattern: '5,5',
-    },
-    {
-      name: 'Chichen Itza-Teotihuacan',
-      start: { lat: 20.6843, lng: -87.1921, name: 'Chichen Itza' },
-      end: { lat: 19.6926, lng: -98.8404, name: 'Teotihuacan' },
-      color: '#86efac',
-      width: 2,
-      dashPattern: '4,4',
-    },
-    {
-      name: 'Lake Titicaca-Atacama',
-      start: { lat: -15.5007, lng: -70.1431, name: 'Lake Titicaca' },
-      end: { lat: -22.8045, lng: -68.1989, name: 'Atacama Desert' },
-      color: '#c4b5fd',
-      width: 2,
-      dashPattern: '3,3',
-    },
+  // Ley Lines
+  const leyLines: LeyLine[] = [
+    { name: 'Stonehenge-Giza', start: { lat: 51.1789, lng: -1.8262 }, end: { lat: 29.9792, lng: 31.1342 }, color: '#ff6b6b', glyph: '✦' },
+    { name: 'Uluru-Machu Picchu', start: { lat: -25.3441, lng: 131.0369 }, end: { lat: -13.1631, lng: -72.5450 }, color: '#20c997', glyph: '✧' },
+    { name: 'Stonehenge-Glastonbury', start: { lat: 51.1789, lng: -1.8262 }, end: { lat: 51.1418, lng: -2.7159 }, color: '#748ffc', glyph: '✧' },
+    { name: 'Easter Island-Nazca', start: { lat: -27.1127, lng: -109.3497 }, end: { lat: -14.6349, lng: -75.1327 }, color: '#f06595', glyph: '✦' },
+    { name: 'Great Pyramid-Petra', start: { lat: 29.9792, lng: 31.1342 }, end: { lat: 30.3285, lng: 35.4444 }, color: '#ffd43b', glyph: '✧' },
+    { name: 'Dendera-Luxor', start: { lat: 26.1627, lng: 32.6703 }, end: { lat: 25.7465, lng: 32.6393 }, color: '#a78bfa', glyph: '✦' },
+    { name: 'Angkor Wat-Kailash', start: { lat: 13.3667, lng: 103.8667 }, end: { lat: 31.1043, lng: 88.6436 }, color: '#34d399', glyph: '✧' },
+    { name: 'Rapa Nui-Tiahuanaco', start: { lat: -27.1127, lng: -109.3497 }, end: { lat: -16.2298, lng: -68.7598 }, color: '#fca5a5', glyph: '✦' },
+    { name: 'Chichen Itza-Teotihuacan', start: { lat: 20.6843, lng: -87.1921 }, end: { lat: 19.6926, lng: -98.8404 }, color: '#86efac', glyph: '✧' },
+    { name: 'Lake Titicaca-Atacama', start: { lat: -15.5007, lng: -70.1431 }, end: { lat: -22.8045, lng: -68.1989 }, color: '#c4b5fd', glyph: '✦' },
   ];
 
-  // Geometry Utility Functions
-  const geoUtils = {
-    // Convert degrees to radians
-    toRad: (degrees) => (degrees * Math.PI) / 180,
+  // Geometry Calculations
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
-    // Calculate great-circle distance between two points using Haversine formula
-    haversineDistance: (lat1, lng1, lat2, lng2) => {
-      const R = 6371; // Earth's radius in km
-      const dLat = geoUtils.toRad(lat2 - lat1);
-      const dLng = geoUtils.toRad(lng2 - lng1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(geoUtils.toRad(lat1)) *
-          Math.cos(geoUtils.toRad(lat2)) *
-          Math.sin(dLng / 2) *
-          Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    },
+  const getPerpendicularDistance = (lat: number, lng: number, lineStart: { lat: number; lng: number }, lineEnd: { lat: number; lng: number }): number => {
+    const lat1 = lineStart.lat;
+    const lng1 = lineStart.lng;
+    const lat2 = lineEnd.lat;
+    const lng2 = lineEnd.lng;
 
-    // Calculate point-to-line distance using cross-track error formula
-    pointToLineDistance: (pointLat, pointLng, startLat, startLng, endLat, endLng) => {
-      const R = 6371; // Earth's radius in km
-      const φ1 = geoUtils.toRad(startLat);
-      const λ1 = geoUtils.toRad(startLng);
-      const φ2 = geoUtils.toRad(endLat);
-      const λ2 = geoUtils.toRad(endLng);
-      const φ3 = geoUtils.toRad(pointLat);
-      const λ3 = geoUtils.toRad(pointLng);
+    const A = lat - lat1;
+    const B = lng - lng1;
+    const C = lat2 - lat1;
+    const D = lng2 - lng1;
 
-      const Δσ13 = Math.acos(
-        Math.sin(φ1) * Math.sin(φ3) +
-          Math.cos(φ1) * Math.cos(φ3) * Math.cos(Math.abs(λ3 - λ1))
-      );
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
 
-      const Δσ12 = Math.acos(
-        Math.sin(φ1) * Math.sin(φ2) +
-          Math.cos(φ1) * Math.cos(φ2) * Math.cos(Math.abs(λ2 - λ1))
-      );
+    if (lenSq !== 0) param = dot / lenSq;
 
-      const Δσ23 = Math.acos(
-        Math.sin(φ2) * Math.sin(φ3) +
-          Math.cos(φ2) * Math.cos(φ3) * Math.cos(Math.abs(λ3 - λ2))
-      );
+    let closestLat: number, closestLng: number;
 
-      // Cross-track distance
-      const crossTrack = Math.asin(
-        Math.sin(Δσ13) * Math.sin(Δσ12 - Δσ13)
-      );
+    if (param < 0) {
+      closestLat = lat1;
+      closestLng = lng1;
+    } else if (param > 1) {
+      closestLat = lat2;
+      closestLng = lng2;
+    } else {
+      closestLat = lat1 + param * C;
+      closestLng = lng1 + param * D;
+    }
 
-      return Math.abs(R * crossTrack);
-    },
+    return calculateDistance(lat, lng, closestLat, closestLng);
+  };
 
-    // Check if point is along line segment (not just the infinite line)
-    isNearLineSegment: (pointLat, pointLng, startLat, startLng, endLat, endLng, threshold) => {
-      // First check if point is within threshold distance of the line
-      const distance = geoUtils.pointToLineDistance(
-        pointLat,
-        pointLng,
-        startLat,
-        startLng,
-        endLat,
-        endLng
-      );
+  const getAssociatedLeyLines = (lat: number, lng: number): LeyLineAssociation[] => {
+    const proximityThreshold = 5;
+    const associated: LeyLineAssociation[] = [];
 
-      if (distance > threshold) return false;
-
-      // Then check if point is between start and end (not beyond)
-      const distToStart = geoUtils.haversineDistance(pointLat, pointLng, startLat, startLng);
-      const distToEnd = geoUtils.haversineDistance(pointLat, pointLng, endLat, endLng);
-      const lineLength = geoUtils.haversineDistance(startLat, startLng, endLat, endLng);
-
-      // Allow 10% buffer beyond endpoints for proximity
-      return distToStart <= lineLength * 1.1 && distToEnd <= lineLength * 1.1;
-    },
-
-    // Get interpolated points along a line for smooth visualization
-    getLineSegmentPoints: (startLat, startLng, endLat, endLng, numPoints = 50) => {
-      const points = [];
-      for (let i = 0; i <= numPoints; i++) {
-        const fraction = i / numPoints;
-        const lat = startLat + (endLat - startLat) * fraction;
-        const lng = startLng + (endLng - startLng) * fraction;
-        points.push([lat, lng]);
+    leyLines.forEach((line) => {
+      const distance = getPerpendicularDistance(lat, lng, line.start, line.end);
+      if (distance <= proximityThreshold) {
+        associated.push({
+          ...line,
+          distance: distance.toFixed(2),
+        });
       }
-      return points;
-    },
+    });
+
+    return associated;
   };
 
   // Initialize Map
@@ -253,23 +206,22 @@ const GhostMapFiles = () => {
   }, [currentPage, mapInitialized]);
 
   const initializeMap = () => {
-    // Using OpenStreetMap with Leaflet as fallback since Google Maps API key not provided
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
     script.onload = () => {
-      const L = window.L;
+      const L = (window as any).L;
       mapInstance.current = L.map(mapRef.current).setView([20, 0], 3);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(mapInstance.current);
 
-      // Add all markers
       const allLocations = [...usGhostTours, ...auGhostTours, ...cemeteries];
       allLocations.forEach((location) => {
         addMarker(location);
       });
 
+      calculateLeyLineAssociations();
       setMapInitialized(true);
     };
 
@@ -279,181 +231,218 @@ const GhostMapFiles = () => {
     document.head.appendChild(link);
   };
 
-  const addMarker = (location) => {
-    if (!mapInstance.current) return;
-    const L = window.L;
+  const calculateLeyLineAssociations = () => {
+    const associations = new Map<number, LeyLineAssociation[]>();
+    const allLocations = [...usGhostTours, ...auGhostTours, ...cemeteries];
 
-    let icon = '👻';
-    let color = '#808080';
+    allLocations.forEach((location) => {
+      const leyLinesNear = getAssociatedLeyLines(location.lat, location.lng);
+      if (leyLinesNear.length > 0) {
+        associations.set(location.id, leyLinesNear);
+      }
+    });
+
+    setLocationsNearLeyLines(associations);
+  };
+
+  const addMarker = (location: Location) => {
+    if (!mapInstance.current) return;
+    const L = (window as any).L;
+
+    let baseColor = '#808080';
 
     if (location.category === 'us-tour') {
-      color = '#ff6b6b';
-      icon = '👻';
+      baseColor = '#ff6b6b';
     } else if (location.category === 'au-tour') {
-      color = '#a78bfa';
-      icon = '👻';
-    } else if (location.category === 'cemetery') {
-      color = '#808080';
-      icon = '🪦';
+      baseColor = '#a78bfa';
     }
 
     const marker = L.marker([location.lat, location.lng], {
       title: location.name,
     }).addTo(mapInstance.current);
 
+    const markerData: MarkerData = { marker, location, baseColor };
+    markersRef.current.push(markerData);
+
+    const icon = location.category === 'cemetery' ? '🪦' : '👻';
+
     marker.bindPopup(`
-      <div style="font-family: 'Playfair Display', serif; color: #1a1a1a; width: 250px;">
-        <h3 style="margin: 0 0 8px 0; color: ${color}; font-size: 18px;">${icon} ${location.name}</h3>
+      <div style="font-family: 'Playfair Display', serif; color: #1a1a1a; width: 280px;">
+        <h3 style="margin: 0 0 8px 0; color: ${baseColor}; font-size: 18px;">${icon} ${location.name}</h3>
         <p style="margin: 0 0 12px 0; font-size: 13px; color: #555;">${location.desc}</p>
-        ${location.booking ? `<a href="${location.booking}" target="_blank" style="display: inline-block; background: ${color}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;">Book Tour →</a>` : '<p style="font-size: 12px; color: #888;">Historical Site</p>'}
+        ${
+          locationsNearLeyLines.has(location.id)
+            ? `<div style="background: #f0f0f0; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 11px;">
+                 <strong style="color: #333;">🔮 Ley Line Energy:</strong>
+                 ${locationsNearLeyLines
+                   .get(location.id)
+                   ?.map(
+                     (ley) =>
+                       `<div style="color: ${ley.color}; margin-top: 4px;"><strong>${ley.name}</strong><br/>${ley.distance}km away</div>`
+                   )
+                   .join('')}
+               </div>`
+            : '<div style="font-size: 11px; color: #999; margin-bottom: 12px;">No ley line energy detected</div>'
+        }
+        ${
+          location.booking
+            ? `<a href="${location.booking}" target="_blank" style="display: inline-block; background: ${baseColor}; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold;">Book Tour →</a>`
+            : '<p style="font-size: 12px; color: #888;">Historical Site</p>'
+        }
       </div>
     `);
 
-    markersRef.current.push({ marker, location, baseColor: color });
-  };
-
-  const updateMarkerColors = () => {
-    if (!leyLinesActive || !mapInstance.current) return;
-
-    const L = window.L;
-    const allLocations = [...usGhostTours, ...auGhostTours, ...cemeteries];
-    const PROXIMITY_THRESHOLD = 5; // 5km
-
-    markersRef.current.forEach(({ location, marker, baseColor }) => {
-      let closestLeyLine = null;
-      let closestDistance = PROXIMITY_THRESHOLD;
-
-      // Check each ley line
-      leyLines.forEach((line) => {
-        const isNear = geoUtils.isNearLineSegment(
-          location.lat,
-          location.lng,
-          line.start.lat,
-          line.start.lng,
-          line.end.lat,
-          line.end.lng,
-          PROXIMITY_THRESHOLD
-        );
-
-        if (isNear) {
-          const distance = geoUtils.pointToLineDistance(
-            location.lat,
-            location.lng,
-            line.start.lat,
-            line.start.lng,
-            line.end.lat,
-            line.end.lng
-          );
-
-          if (distance < closestDistance) {
-            closestDistance = distance;
-            closestLeyLine = line;
-          }
-        }
-      });
-
-      // Update marker color
-      const newColor = closestLeyLine ? closestLeyLine.color : baseColor;
-      marker.setIcon(
-        L.divIcon({
-          html: `<div style="
-            font-size: 24px;
-            text-shadow: 0 0 10px ${newColor};
-            filter: drop-shadow(0 0 3px ${newColor});
-            animation: ${closestLeyLine ? 'pulse 2s infinite' : 'none'};
-          ">${location.category === 'cemetery' ? '🪦' : '👻'}</div>`,
-          iconSize: [30, 30],
-          className: 'ghost-marker',
-        })
-      );
-    });
+    marker.location = location;
   };
 
   const toggleLeyLines = () => {
-    const newState = !leyLinesActive;
-    setLeyLinesActive(newState);
-
-    if (newState) {
+    if (!leyLinesActive) {
       drawLeyLines();
-      updateMarkerColors();
     } else {
       clearLeyLines();
-      // Reset marker colors to base colors
-      markersRef.current.forEach(({ marker, baseColor, location }) => {
-        const L = window.L;
-        marker.setIcon(
-          L.divIcon({
-            html: `<div style="font-size: 24px; text-shadow: 0 0 10px ${baseColor};">${location.category === 'cemetery' ? '🪦' : '👻'}</div>`,
-            iconSize: [30, 30],
-            className: 'ghost-marker',
-          })
-        );
-      });
     }
+    setLeyLinesActive(!leyLinesActive);
   };
 
   const drawLeyLines = () => {
     if (!mapInstance.current) return;
-    const L = window.L;
-
-    clearLeyLines();
+    const L = (window as any).L;
 
     leyLines.forEach((line) => {
-      const points = geoUtils.getLineSegmentPoints(
-        line.start.lat,
-        line.start.lng,
-        line.end.lat,
-        line.end.lng,
-        100
-      );
+      const polyline = L.polyline(
+        [
+          [line.start.lat, line.start.lng],
+          [line.end.lat, line.end.lng],
+        ],
+        {
+          color: line.color,
+          weight: 2,
+          opacity: 0.6,
+          dashArray: '5, 5',
+          lineCap: 'round',
+          lineJoin: 'round',
+        }
+      ).addTo(mapInstance.current);
 
-      const polyline = L.polyline(points, {
-        color: line.color,
-        weight: line.width,
-        opacity: 0.6,
-        dashArray: line.dashPattern,
-        lineCap: 'round',
-        lineJoin: 'round',
-      }).addTo(mapInstance.current);
+      const glowLine = L.polyline(
+        [
+          [line.start.lat, line.start.lng],
+          [line.end.lat, line.end.lng],
+        ],
+        {
+          color: line.color,
+          weight: 6,
+          opacity: 0.1,
+          dashArray: '5, 5',
+          lineCap: 'round',
+          lineJoin: 'round',
+        }
+      ).addTo(mapInstance.current);
 
-      // Add markers at endpoints
       L.circleMarker([line.start.lat, line.start.lng], {
         radius: 6,
         fillColor: line.color,
         color: '#fff',
         weight: 2,
-        opacity: 0.8,
+        opacity: 1,
         fillOpacity: 0.8,
       })
-        .addTo(mapInstance.current)
-        .bindPopup(`<div style="color: #1a1a1a; font-weight: bold;">${line.start.name}</div>`);
+        .bindPopup(`<div style="text-align: center; color: #333;">
+          <strong>${line.name} (Start)</strong><br/>
+          <small style="color: ${line.color};">Energy Origin</small>
+        </div>`)
+        .addTo(mapInstance.current);
 
       L.circleMarker([line.end.lat, line.end.lng], {
         radius: 6,
         fillColor: line.color,
         color: '#fff',
         weight: 2,
-        opacity: 0.8,
+        opacity: 1,
         fillOpacity: 0.8,
       })
-        .addTo(mapInstance.current)
-        .bindPopup(`<div style="color: #1a1a1a; font-weight: bold;">${line.end.name}</div>`);
+        .bindPopup(`<div style="text-align: center; color: #333;">
+          <strong>${line.name} (End)</strong><br/>
+          <small style="color: ${line.color};">Energy Terminus</small>
+        </div>`)
+        .addTo(mapInstance.current);
 
-      polylineLayersRef.current.push(polyline);
-      leyLineLayersRef.current.push(polyline);
+      leyLineLayersRef.current.push(polyline, glowLine);
+    });
+
+    updateMarkerColorsForLeyLines();
+  };
+
+  const updateMarkerColorsForLeyLines = () => {
+    const L = (window as any).L;
+
+    markersRef.current.forEach((markerData) => {
+      const { location, marker } = markerData;
+      const leyLinesNear = locationsNearLeyLines.get(location.id);
+
+      if (leyLinesNear && leyLinesNear.length > 0) {
+        const closestLeyLine = leyLinesNear.reduce((closest, current) =>
+          parseFloat(current.distance) < parseFloat(closest.distance) ? current : closest
+        );
+
+        const html = `<div style="
+          background: ${closestLeyLine.color};
+          border: 2px solid white;
+          border-radius: 50%;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          box-shadow: 0 0 15px ${closestLeyLine.color}80;
+          animation: pulse 2s infinite;
+        ">👻</div>`;
+
+        const customIcon = L.divIcon({
+          html,
+          iconSize: [28, 28],
+          className: 'custom-marker',
+        });
+
+        marker.setIcon(customIcon);
+      }
     });
   };
 
   const clearLeyLines = () => {
     if (!mapInstance.current) return;
-    polylineLayersRef.current.forEach((layer) => {
-      mapInstance.current.removeLayer(layer);
-    });
+    const L = (window as any).L;
+
     leyLineLayersRef.current.forEach((layer) => {
       mapInstance.current.removeLayer(layer);
     });
     leyLineLayersRef.current = [];
-    polylineLayersRef.current = [];
+
+    markersRef.current.forEach((markerData) => {
+      const { marker, location, baseColor } = markerData;
+      const icon = location.category === 'cemetery' ? '🪦' : '👻';
+
+      const html = `<div style="
+        background: ${baseColor};
+        border: 2px solid white;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+      ">${icon}</div>`;
+
+      const defaultIcon = L.divIcon({
+        html,
+        iconSize: [28, 28],
+        className: 'custom-marker',
+      });
+
+      marker.setIcon(defaultIcon);
+    });
   };
 
   const centerOnUser = () => {
@@ -495,7 +484,6 @@ const GhostMapFiles = () => {
           letter-spacing: 0.08em;
         }
 
-        /* Glow effects */
         .glow-red {
           text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
           box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
@@ -531,12 +519,8 @@ const GhostMapFiles = () => {
         }
 
         @keyframes pulse {
-          0%, 100% {
-            filter: drop-shadow(0 0 3px currentColor);
-          }
-          50% {
-            filter: drop-shadow(0 0 8px currentColor);
-          }
+          0%, 100% { box-shadow: 0 0 15px currentColor; }
+          50% { box-shadow: 0 0 25px currentColor; }
         }
 
         .stagger-child {
@@ -548,7 +532,6 @@ const GhostMapFiles = () => {
         .stagger-child:nth-child(3) { animation-delay: 0.3s; }
         .stagger-child:nth-child(4) { animation-delay: 0.4s; }
 
-        /* Leaflet overrides */
         .leaflet-container {
           background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         }
@@ -575,13 +558,12 @@ const GhostMapFiles = () => {
             <span className="display-font text-xl font-bold glow-red">GHOST MAP FILES</span>
           </button>
 
-          {/* Desktop Menu */}
           <div className="hidden md:flex gap-8 items-center">
             {[
-              { label: 'Home', page: 'home', icon: Home },
-              { label: 'Tours', page: 'tours', icon: MapPin },
-              { label: 'Cemeteries', page: 'cemeteries', icon: BookOpen },
-              { label: 'About', page: 'about', icon: Info },
+              { label: 'Home', page: 'home' as const, icon: Home },
+              { label: 'Tours', page: 'tours' as const, icon: MapPin },
+              { label: 'Cemeteries', page: 'cemeteries' as const, icon: BookOpen },
+              { label: 'About', page: 'about' as const, icon: Info },
             ].map(({ label, page, icon: Icon }) => (
               <button
                 key={page}
@@ -596,7 +578,6 @@ const GhostMapFiles = () => {
             ))}
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="md:hidden text-red-400 hover:text-red-300 transition"
@@ -605,14 +586,13 @@ const GhostMapFiles = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {menuOpen && (
           <div className="md:hidden bg-slate-900/95 backdrop-blur border-t border-red-900/30 animate-fadeIn">
             {[
-              { label: 'Home', page: 'home' },
-              { label: 'Tours', page: 'tours' },
-              { label: 'Cemeteries', page: 'cemeteries' },
-              { label: 'About', page: 'about' },
+              { label: 'Home', page: 'home' as const },
+              { label: 'Tours', page: 'tours' as const },
+              { label: 'Cemeteries', page: 'cemeteries' as const },
+              { label: 'About', page: 'about' as const },
             ].map(({ label, page }) => (
               <button
                 key={page}
@@ -631,14 +611,11 @@ const GhostMapFiles = () => {
         )}
       </nav>
 
-      {/* Main Content */}
       <main className="pt-20">
-        {/* Home - Map Page */}
         {currentPage === 'home' && (
           <div className="relative w-full h-screen fade-in">
             <div ref={mapRef} className="w-full h-full" />
 
-            {/* Map Controls Overlay */}
             <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
               <button
                 onClick={centerOnUser}
@@ -655,13 +632,12 @@ const GhostMapFiles = () => {
                     ? 'bg-purple-600 hover:bg-purple-700'
                     : 'bg-slate-700 hover:bg-slate-600'
                 }`}
-                title="Toggle ley lines"
+                title="Toggle ley line energy grid"
               >
-                <div className="text-lg">✦</div>
+                <Zap size={20} />
               </button>
             </div>
 
-            {/* Legend */}
             <div className="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur border border-red-900/30 rounded-lg p-4 max-w-xs z-40">
               <h3 className="display-font text-red-400 mb-3 font-bold">Legend</h3>
               <div className="space-y-2 text-sm">
@@ -677,24 +653,26 @@ const GhostMapFiles = () => {
                   <span className="text-gray-400 text-lg">🪦</span>
                   <span>Cemeteries</span>
                 </div>
+                {leyLinesActive && (
+                  <div className="mt-3 pt-3 border-t border-gray-700">
+                    <div className="text-xs text-purple-300 font-bold mb-2">🔮 Ley Lines Active</div>
+                    <p className="text-xs text-gray-400">Markers near energy lines glow with line colors</p>
+                  </div>
+                )}
               </div>
-              {leyLinesActive && (
-                <div className="mt-4 pt-4 border-t border-red-900/30">
-                  <p className="text-xs text-gray-400 font-bold mb-2">✦ Ley Lines Active</p>
-                  <p className="text-xs text-gray-500">Haunted locations within 5km of ley lines glow with energy.</p>
-                </div>
-              )}
             </div>
 
-            {/* Info Banner */}
             <div className="absolute top-24 left-6 right-6 max-w-md bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur border border-red-900/30 rounded-lg p-4 z-40 md:block hidden">
               <p className="display-font text-red-400 font-bold mb-2">Welcome to the Paranormal</p>
-              <p className="text-sm text-gray-300">Explore 45 haunted locations worldwide. Tap markers for details. Toggle ✦ to reveal ley line energy connections.</p>
+              <p className="text-sm text-gray-300">
+                {leyLinesActive
+                  ? '🔮 Ley line energy is activated. Locations aligned with global energy grids now glow with their line colors.'
+                  : 'Explore 45 haunted locations worldwide. Tap markers for details. Activate ley lines to reveal energy connections.'}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Tours Page */}
         {currentPage === 'tours' && (
           <div className="min-h-screen pb-12">
             <div className="max-w-6xl mx-auto px-4 py-12">
@@ -705,7 +683,6 @@ const GhostMapFiles = () => {
                 <p className="text-gray-400 max-w-2xl">Book authentic paranormal experiences at the world's most haunted locations.</p>
               </div>
 
-              {/* US Tours */}
               <div className="mb-16 stagger-child">
                 <h2 className="accent-font text-2xl text-red-400 mb-6 flex items-center gap-2">
                   <span className="text-red-500">👻</span> United States
@@ -719,7 +696,7 @@ const GhostMapFiles = () => {
                       <h3 className="display-font text-lg font-bold text-red-400 mb-2">{tour.name}</h3>
                       <p className="text-gray-400 text-sm mb-4">{tour.desc}</p>
                       <a
-                        href={tour.booking}
+                        href={tour.booking || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm font-bold transition"
@@ -732,7 +709,6 @@ const GhostMapFiles = () => {
                 </div>
               </div>
 
-              {/* AU Tours */}
               <div className="stagger-child">
                 <h2 className="accent-font text-2xl text-purple-400 mb-6 flex items-center gap-2">
                   <span className="text-purple-500">👻</span> Australia & Victoria
@@ -746,7 +722,7 @@ const GhostMapFiles = () => {
                       <h3 className="display-font text-lg font-bold text-purple-400 mb-2">{tour.name}</h3>
                       <p className="text-gray-400 text-sm mb-4">{tour.desc}</p>
                       <a
-                        href={tour.booking}
+                        href={tour.booking || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-sm font-bold transition"
@@ -762,7 +738,6 @@ const GhostMapFiles = () => {
           </div>
         )}
 
-        {/* Cemeteries Page */}
         {currentPage === 'cemeteries' && (
           <div className="min-h-screen pb-12">
             <div className="max-w-6xl mx-auto px-4 py-12">
@@ -790,7 +765,6 @@ const GhostMapFiles = () => {
           </div>
         )}
 
-        {/* About Page */}
         {currentPage === 'about' && (
           <div className="min-h-screen pb-12">
             <div className="max-w-3xl mx-auto px-4 py-12 fade-in">
@@ -807,92 +781,23 @@ const GhostMapFiles = () => {
                 </section>
 
                 <section className="bg-gradient-to-br from-slate-800 to-slate-900 border border-red-900/30 rounded-lg p-8 stagger-child">
-                  <h2 className="accent-font text-2xl text-red-400 mb-4">Advanced Ley Line Geometry</h2>
+                  <h2 className="accent-font text-2xl text-red-400 mb-4">Ley Lines Explained</h2>
                   <p className="text-gray-300 leading-relaxed mb-4">
-                    Our ley line system uses advanced geographic calculations to determine proximity to energy grids:
+                    Ley lines are hypothetical alignments of ancient spiritual sites and natural landmarks that some believe form a global energy grid. Our advanced geometry engine maps 10 major ley lines connecting sacred locations like Stonehenge, the Giza Pyramids, Machu Picchu, and more.
                   </p>
-                  <ul className="space-y-3 text-gray-300 text-sm mb-4">
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span><strong>Haversine Formula:</strong> Calculates great-circle distances between any two points on Earth using latitude/longitude</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span><strong>Cross-Track Error:</strong> Determines shortest distance from a point to an infinite line</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span><strong>Line Segment Proximity:</strong> Checks if points fall between line endpoints (not beyond)</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span><strong>Energy Detection:</strong> Haunted locations within 5km of active ley lines automatically highlight</span>
-                    </li>
-                  </ul>
-                  <p className="text-gray-400 text-xs italic">
-                    Every calculation uses spherical trigonometry to account for Earth's curvature, ensuring accuracy across continental distances.
+                  <p className="text-gray-400 text-sm italic mb-4">
+                    Our proximity calculation uses the Haversine formula and perpendicular distance algorithms to identify haunted locations within 5km of a ley line's path.
                   </p>
                 </section>
 
                 <section className="bg-gradient-to-br from-slate-800 to-slate-900 border border-red-900/30 rounded-lg p-8 stagger-child">
-                  <h2 className="accent-font text-2xl text-red-400 mb-4">Features</h2>
-                  <ul className="space-y-3 text-gray-300">
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span>Interactive global map with 45+ haunted locations</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span>Direct booking integration with Viator for verified tours</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span>Advanced geometric ley line calculations with real-world accuracy</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span>Dynamic marker color updates based on proximity to energy grids</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span>Victorian cemetery database with historical context</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-red-400">→</span>
-                      <span>GPS location services for nearby paranormal hotspots</span>
-                    </li>
+                  <h2 className="accent-font text-2xl text-red-400 mb-4">Tech Stack</h2>
+                  <ul className="space-y-2 text-gray-300 text-sm">
+                    <li>• <strong>Frontend:</strong> React 18, Tailwind CSS, TypeScript</li>
+                    <li>• <strong>Maps:</strong> Leaflet.js + OpenStreetMap (free)</li>
+                    <li>• <strong>Geometry:</strong> Haversine formula, perpendicular distance</li>
+                    <li>• <strong>Hosting:</strong> Vercel (free tier)</li>
                   </ul>
-                </section>
-
-                <section className="bg-gradient-to-br from-slate-800 to-slate-900 border border-red-900/30 rounded-lg p-8 stagger-child">
-                  <h2 className="accent-font text-2xl text-red-400 mb-4">Deployment & Technology</h2>
-                  <p className="text-gray-300 mb-4">
-                    Ghost Map Files is built with React for maximum interactivity and performance. For a low-cost, scalable deployment, we recommend:
-                  </p>
-                  <ul className="space-y-3 text-gray-300">
-                    <li className="flex gap-3">
-                      <span className="text-purple-400">•</span>
-                      <span><strong>Vercel:</strong> Ideal for React apps, free tier includes 50GB bandwidth/month. Deploy from GitHub with automatic CI/CD.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-purple-400">•</span>
-                      <span><strong>Netlify:</strong> Similar benefits, great free tier, easy form handling.</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="text-purple-400">•</span>
-                      <span><strong>GitHub Pages:</strong> Free static hosting (works for production builds).</span>
-                    </li>
-                  </ul>
-                  <p className="text-gray-400 text-sm mt-4 italic">
-                    Next steps: Set up a GitHub repo, push to Vercel, customize environment variables for API keys, and configure your domain.
-                  </p>
-                </section>
-
-                <section className="bg-gradient-to-br from-red-900/20 to-slate-900 border border-red-900/50 rounded-lg p-8 stagger-child">
-                  <h2 className="accent-font text-2xl text-red-400 mb-4">Join the Exploration</h2>
-                  <p className="text-gray-300">
-                    Every haunting tells a story. Every cemetery holds secrets. Ghost Map Files is your guide into the unexplained corners of our world. Start exploring today.
-                  </p>
                 </section>
               </div>
             </div>
@@ -900,7 +805,6 @@ const GhostMapFiles = () => {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-red-900/30 bg-gradient-to-t from-slate-950 to-transparent py-8 mt-12">
         <div className="max-w-6xl mx-auto px-4 text-center text-gray-500 text-sm">
           <p>© 2024 Ghost Map Files. Exploring the paranormal worldwide.</p>
@@ -909,6 +813,4 @@ const GhostMapFiles = () => {
       </footer>
     </div>
   );
-};
-
-export default GhostMapFiles;
+}
