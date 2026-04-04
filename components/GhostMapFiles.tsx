@@ -8,25 +8,6 @@ interface Location {
   name: string;
   lat: number;
   lng: number;
-  category: string;
-  desc: string;
-  booking: string | null;
-}
-
-interface LeyLine {
-  name: string;
-  start: { lat: number; lng: number };
-  end: { lat: number; lng: number };
-  color: string;
-  glyph: string;
-  distance?: string;
-}
-
-interface Location {
-  id: number;
-  name: string;
-  lat: number;
-  lng: number;
   category: 'us-tour' | 'au-tour' | 'cemetery';
   desc: string;
   booking: string | null;
