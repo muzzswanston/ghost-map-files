@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, MapPin, Compass, Home, BookOpen, Info, ExternalLink, Zap } from 'lucide-react';
 
+type LocationCategory = 'us-tour' | 'au-tour' | 'cemetery';
+
 interface Location {
   id: number;
   name: string;
   lat: number;
   lng: number;
-  category: 'us-tour' | 'au-tour' | 'cemetery';
+  category: LocationCategory;
   desc: string;
   booking: string | null;
 }
@@ -96,7 +98,7 @@ export default function GhostMapFiles() {
     { id: 41, name: 'Werribee Cemetery', lat: -37.8967, lng: 144.6778, category: 'cemetery', desc: 'Western suburbs resting place', booking: null },
     { id: 42, name: 'Lilydale Cemetery', lat: -37.7456, lng: 145.3589, category: 'cemetery', desc: 'Mountain town burial ground', booking: null },
     { id: 43, name: 'Yarra Glen Cemetery', lat: -37.6234, lng: 145.4101, category: 'cemetery', desc: "Wine country's quiet haunts", booking: null },
-    { id: 44, name: 'Healesville Cemetery', lat: -37.6889, lng: 145.5012, category: 'cemetery', desc: 'Toucan forest memorial ground', booking: null },
+    { id: 44, name: 'Healesville Cemetery', lat: -37.6889, lng: 145.5012, category: 'cemetery', desc: 'Forest memorial ground', booking: null },
     { id: 45, name: 'Warburton Cemetery', lat: -37.6423, lng: 145.5678, category: 'cemetery', desc: 'Deep fern gully burial place', booking: null },
   ];
 
@@ -187,28 +189,40 @@ export default function GhostMapFiles() {
   }, [currentPage, mapInitialized]);
 
   const initializeMap = () => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-    script.onload = () => {
-      const L = (window as any).L;
-      mapInstance.current = L.map(mapRef.current).setView([20, 0], 3);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
-      }).addTo(mapInstance.current);
-
-      const allLocations = [...usGhostTours, ...auGhostTours, ...cemeteries];
-      allLocations.forEach((location) => {
-        addMarker(location);
-      });
-
-      calculateLeyLineAssociations();
-      setMapInitialized(true);
-    };
-
+    // Load CSS first
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    link.onload = () => {
+      // Then load JS
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      script.onload = () => {
+        const L = (window as any).L;
+        if (!L) {
+          console.error('Leaflet failed to load');
+          return;
+        }
+
+        mapInstance.current = L.map(mapRef.current, {
+          preferCanvas: true,
+        }).setView([20, 0], 3);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(mapInstance.current);
+
+        const allLocations = [...usGhostTours, ...auGhostTours, ...cemeteries];
+        allLocations.forEach((location) => {
+          addMarker(location);
+        });
+
+        calculateLeyLineAssociations();
+        setMapInitialized(true);
+      };
+      document.head.appendChild(script);
+    };
     document.head.appendChild(link);
   };
 
@@ -449,6 +463,12 @@ export default function GhostMapFiles() {
           box-sizing: border-box;
         }
 
+        html, body, #__next {
+          height: 100%;
+          width: 100%;
+          overflow-x: hidden;
+        }
+
         body {
           font-family: 'Lato', sans-serif;
           background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
@@ -515,6 +535,8 @@ export default function GhostMapFiles() {
 
         .leaflet-container {
           background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          height: 100% !important;
+          width: 100% !important;
         }
 
         .leaflet-popup-content-wrapper {
@@ -525,6 +547,19 @@ export default function GhostMapFiles() {
 
         .leaflet-popup-tip {
           background: #1a1a1a;
+        }
+
+        .w-full.h-screen {
+          width: 100%;
+          height: 100%;
+          min-height: 100vh;
+        }
+
+        .relative.w-full {
+          position: relative;
+          width: 100%;
+          height: 100vh;
+          overflow: hidden;
         }
       `}</style>
 
@@ -593,10 +628,31 @@ export default function GhostMapFiles() {
       </nav>
 
       <main className="pt-20">
+        {/* HOME - MAP PAGE WITH FIXED HEIGHT */}
         {currentPage === 'home' && (
-          <div className="relative w-full h-screen fade-in">
-            <div ref={mapRef} className="w-full h-full" />
+          <div 
+            className="fade-in" 
+            style={{ 
+              width: '100vw', 
+              height: '100vh',
+              overflow: 'hidden',
+              position: 'fixed',
+              top: '80px',
+              left: 0,
+              right: 0,
+              bottom: 0
+            }}
+          >
+            <div 
+              ref={mapRef} 
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                background: '#1a1a2e'
+              }} 
+            />
 
+            {/* Map Controls Overlay */}
             <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
               <button
                 onClick={centerOnUser}
@@ -619,6 +675,7 @@ export default function GhostMapFiles() {
               </button>
             </div>
 
+            {/* Legend */}
             <div className="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur border border-red-900/30 rounded-lg p-4 max-w-xs z-40">
               <h3 className="display-font text-red-400 mb-3 font-bold">Legend</h3>
               <div className="space-y-2 text-sm">
@@ -637,13 +694,14 @@ export default function GhostMapFiles() {
                 {leyLinesActive && (
                   <div className="mt-3 pt-3 border-t border-gray-700">
                     <div className="text-xs text-purple-300 font-bold mb-2">🔮 Ley Lines Active</div>
-                    <p className="text-xs text-gray-400">Markers near energy lines glow with line colors</p>
+                    <p className="text-xs text-gray-400">Markers glow with energy colors</p>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="absolute top-24 left-6 right-6 max-w-md bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur border border-red-900/30 rounded-lg p-4 z-40 md:block hidden">
+            {/* Info Banner */}
+            <div className="absolute top-24 left-6 right-6 max-w-md bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur border border-red-900/30 rounded-lg p-4 z-40 hidden md:block">
               <p className="display-font text-red-400 font-bold mb-2">Welcome to the Paranormal</p>
               <p className="text-sm text-gray-300">
                 {leyLinesActive
@@ -654,6 +712,7 @@ export default function GhostMapFiles() {
           </div>
         )}
 
+        {/* Tours Page */}
         {currentPage === 'tours' && (
           <div className="min-h-screen pb-12">
             <div className="max-w-6xl mx-auto px-4 py-12">
@@ -719,6 +778,7 @@ export default function GhostMapFiles() {
           </div>
         )}
 
+        {/* Cemeteries Page */}
         {currentPage === 'cemeteries' && (
           <div className="min-h-screen pb-12">
             <div className="max-w-6xl mx-auto px-4 py-12">
@@ -746,6 +806,7 @@ export default function GhostMapFiles() {
           </div>
         )}
 
+        {/* About Page */}
         {currentPage === 'about' && (
           <div className="min-h-screen pb-12">
             <div className="max-w-3xl mx-auto px-4 py-12 fade-in">
