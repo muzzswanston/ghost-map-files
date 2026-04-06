@@ -564,8 +564,8 @@ export default function GhostMapFiles() {
       `}</style>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-slate-950 to-transparent border-b border-red-900/30 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-slate-950 to-transparent border-b border-red-900/30 backdrop-blur-sm" style={{ height: '80px' }}>
+        <div className="w-full h-full px-4 flex items-center justify-between">
           <button
             onClick={() => setCurrentPage('home')}
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition"
@@ -633,14 +633,15 @@ export default function GhostMapFiles() {
           <div 
             className="fade-in" 
             style={{ 
-              width: '100vw', 
-              height: '100vh',
+              width: '100%', 
+              height: 'calc(100vh - 80px)',
               overflow: 'hidden',
               position: 'fixed',
               top: '80px',
               left: 0,
               right: 0,
-              bottom: 0
+              bottom: 0,
+              zIndex: 10
             }}
           >
             <div 
@@ -648,7 +649,10 @@ export default function GhostMapFiles() {
               style={{ 
                 width: '100%', 
                 height: '100%',
-                background: '#1a1a2e'
+                background: '#1a1a2e',
+                position: 'absolute',
+                top: 0,
+                left: 0
               }} 
             />
 
