@@ -658,7 +658,7 @@ export default function GhostMapFiles() {
             />
 
             {/* Map Controls Overlay */}
-            <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
+            <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40" style={{ pointerEvents: 'auto' }}>
               <button
                 onClick={centerOnUser}
                 className="bg-red-600 hover:bg-red-700 p-3 rounded-lg transition hover-lift shadow-lg"
@@ -681,7 +681,7 @@ export default function GhostMapFiles() {
             </div>
 
             {/* Legend */}
-            <div className="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur border border-red-900/30 rounded-lg p-4 max-w-xs z-40">
+            <div className="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur border border-red-900/30 rounded-lg p-4 max-w-xs z-40" style={{ pointerEvents: 'auto' }}>
               <h3 className="display-font text-red-400 mb-3 font-bold">Legend</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
@@ -706,7 +706,7 @@ export default function GhostMapFiles() {
             </div>
 
             {/* Info Banner */}
-            <div className="absolute top-24 left-6 right-6 max-w-md bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur border border-red-900/30 rounded-lg p-4 z-40 hidden md:block">
+            <div className="absolute top-24 left-6 right-6 max-w-md bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur border border-red-900/30 rounded-lg p-4 z-40 hidden md:block" style={{ pointerEvents: 'auto' }}>
               <p className="display-font text-red-400 font-bold mb-2">Welcome to the Paranormal</p>
               <p className="text-sm text-gray-300">
                 {leyLinesActive
