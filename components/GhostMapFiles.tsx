@@ -206,7 +206,8 @@ export default function GhostMapFiles() {
 
         mapInstance.current = L.map(mapRef.current, {
           preferCanvas: true,
-        }).setView([20, 0], 3);
+          worldCopyJump: true,
+        }).setView([20, 0], 2);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
           attribution: '© OpenStreetMap contributors',
